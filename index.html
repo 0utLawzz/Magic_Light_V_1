@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MagicLight Auto — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0d0d;--panel:#161616;--border:#2a2a2a;--accent:#FFE500;--accent2:#00CC66;--red:#ff3b3b;
+  --blue:#2D5BFF;--text:#f0f0f0;--muted:#888;--card:#1c1c1c;
+}
+body{font-family:'Space Grotesk',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.topbar{background:var(--panel);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:3px;color:var(--accent)}
+.logo span{color:var(--red)}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.badge{background:#1f1f1f;border:1px solid var(--border);padding:6px 14px;font-size:12px;font-weight:600;border-radius:4px;color:var(--muted)}
+.badge b{color:var(--accent)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;border:none;border-radius:4px;font-family:'Space Grotesk',sans-serif;transition:.15s;letter-spacing:.5px}
+.btn-primary{background:var(--accent);color:#000}
+.btn-primary:hover{background:#ffe94d}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--border);color:var(--text)}
+.btn-danger{background:var(--red);color:#fff}
+.btn-success{background:var(--accent2);color:#000}
+.container{max-width:1400px;margin:0 auto;padding:24px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px 20px}
+.stat-n{font-family:'Bebas Neue',sans-serif;font-size:40px;line-height:1}
+.stat-l{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-top:4px}
+.stat.done .stat-n{color:var(--accent2)}
+.stat.pending .stat-n{color:var(--accent)}
+.stat.error .stat-n{color:var(--red)}
+.toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.search{flex:1;min-width:200px;background:var(--card);border:1px solid var(--border);border-radius:4px;padding:9px 14px;color:var(--text);font-size:13px;font-family:'Space Grotesk',sans-serif;outline:none}
+.search:focus{border-color:var(--accent)}
+.filter-chip{padding:6px 14px;border:1px solid var(--border);border-radius:20px;cursor:pointer;font-size:12px;font-weight:600;background:transparent;color:var(--muted);transition:.1s;white-space:nowrap}
+.filter-chip.active,.filter-chip:hover{background:var(--accent);color:#000;border-color:var(--accent)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;cursor:pointer;transition:.15s}
+.card:hover{border-color:#444;transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.thumb-wrap{position:relative;width:100%;height:150px;background:#111;overflow:hidden}
+.thumb-img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb-fallback{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:48px;color:#333}
+.status-pill{position:absolute;top:8px;right:8px;font-size:10px;font-weight:700;padding:3px 9px;border-radius:3px;text-transform:uppercase;letter-spacing:.5px}
+.pill-done{background:var(--accent2);color:#000}
+.pill-generated{background:var(--accent);color:#000}
+.pill-pending{background:#333;color:var(--muted)}
+.pill-error{background:var(--red);color:#fff}
+.pill-processing{background:var(--blue);color:#fff}
+.card-body{padding:12px}
+.card-title{font-size:13px;font-weight:700;line-height:1.4;margin-bottom:6px;color:var(--text)}
+.card-meta{font-size:11px;color:var(--muted);margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-footer{display:flex;align-items:center;justify-content:space-between}
+.drive-link{font-size:11px;font-weight:600;color:var(--accent);text-decoration:none}
+.drive-link:hover{text-decoration:underline}
+/* Modal */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;align-items:center;justify-content:center;padding:16px}
+.overlay.open{display:flex}
+.modal{background:var(--panel);border:1px solid var(--border);border-radius:12px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto}
+.modal-head{padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.modal-head h2{font-size:16px;font-weight:700}
+.modal-body{padding:20px 24px}
+.modal-thumb{width:100%;height:200px;object-fit:cover;border-radius:6px;display:block;margin-bottom:16px;background:#111}
+.modal-thumb-ph{width:100%;height:200px;background:#111;border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:60px;color:#333;margin-bottom:16px}
+.detail-row{display:flex;gap:8px;margin-bottom:8px;font-size:13px}
+.detail-label{color:var(--muted);min-width:100px;flex-shrink:0}
+.detail-value{color:var(--text);word-break:break-all}
+.detail-link{color:var(--accent);text-decoration:none}
+.detail-link:hover{text-decoration:underline}
+.autopost-notice{background:#0a1f0a;border:1px solid var(--accent2);border-radius:6px;padding:12px 16px;font-size:12px;color:var(--accent2);margin-top:16px;display:flex;align-items:center;gap:8px}
+.close-x{background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:20px;line-height:1;padding:4px}
+.close-x:hover{color:var(--text)}
+.empty{text-align:center;padding:60px 20px;color:var(--muted)}
+.empty h3{font-size:16px;margin-bottom:8px}
+.loading-shimmer{background:linear-gradient(90deg,var(--card) 25%,#1f1f1f 50%,var(--card) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:8px;height:220px}
+@keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">Magic<span>▶</span>Light Dashboard</div>
+  <div class="topbar-right">
+    <div class="badge">Sheet: <b id="hdr-sheet">—</b></div>
+    <div class="badge" id="hdr-status">Loading...</div>
+    <button class="btn btn-primary" onclick="loadData()">↻ Refresh</button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="stats">
+    <div class="stat"><div class="stat-n" id="st-total">0</div><div class="stat-l">Total Stories</div></div>
+    <div class="stat done"><div class="stat-n" id="st-done">0</div><div class="stat-l">Done</div></div>
+    <div class="stat pending"><div class="stat-n" id="st-pending">0</div><div class="stat-l">Pending</div></div>
+    <div class="stat error"><div class="stat-n" id="st-error">0</div><div class="stat-l">Errors</div></div>
+  </div>
+
+  <div class="toolbar">
+    <input class="search" id="search" type="text" placeholder="Search by title, theme, notes…" oninput="applyFilter()">
+    <div id="status-filters" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+</div>
+
+<!-- Detail Modal -->
+<div class="overlay" id="overlay" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="modal-title">Story Detail</h2>
+      <button class="close-x" onclick="document.getElementById('overlay').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQrwn7Tei_9QBxtJ-Ka_wGtKNISq4TfafHKu2ANAiACNOZagNrl6uG2WghkPogOQNUXsDb618bFMqbB/pub?output=csv';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxIb22Qo_3BxI73PgD5PbaDu6ocMXQu7T_FV7kBKZztcJvcOMKuTERZVg1AKAAnV7f3qg/exec';
+const YT_CHANNEL_ID   = 'UC2FdFOP-XrLFlWN9VJWmYWQ';
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+let allStories = [];
+let filtered   = [];
+let activeFilter = 'All';
+
+// ── LOAD DATA ────────────────────────────────────────────────────────────────
+async function loadData() {
+  document.getElementById('hdr-status').textContent = 'Loading…';
+  document.getElementById('grid').innerHTML = Array(8).fill(
+    '<div class="loading-shimmer"></div>'
+  ).join('');
+
+  try {
+    const r   = await fetch(SHEET_CSV_URL + '&t=' + Date.now());
+    const txt = await r.text();
+    allStories = parseCSV(txt);
+    document.getElementById('hdr-sheet').textContent = 'Connected';
+    document.getElementById('hdr-status').textContent = allStories.length + ' stories';
+  } catch(e) {
+    document.getElementById('hdr-status').textContent = 'Offline — demo data';
+    allStories = DEMO;
+  }
+  applyFilter();
+  updateStats();
+  buildFilters();
+}
+
+// ── CSV PARSER ────────────────────────────────────────────────────────────────
+function parseCSV(txt) {
+  const lines   = txt.trim().split('\n');
+  const headers = lines[0].split(',').map(h => h.replace(/"/g,'').trim().toLowerCase().replace(/ /g,'_'));
+  return lines.slice(1).map(line => {
+    const vals = []; let cur = '', inQ = false;
+    for(let c of line){ if(c==='"'){inQ=!inQ} else if(c===','&&!inQ){vals.push(cur);cur=''}else{cur+=c} }
+    vals.push(cur);
+    const obj = {};
+    headers.forEach((h,i) => obj[h] = (vals[i]||'').replace(/"/g,'').trim());
+    if(!obj.driveimg_link && !obj.drive_img_link) {
+      const imgKey = Object.keys(obj).find(k => /driveimg|drive_img|thumb|thumbnail|image|img/.test(k));
+      if(imgKey && obj[imgKey]) obj.driveimg_link = obj[imgKey];
+    }
+    return obj;
+  }).filter(r => r.title || r.gen_title || r.story);
+}
+
+// ── STATS ─────────────────────────────────────────────────────────────────────
+function updateStats() {
+  document.getElementById('st-total').textContent   = allStories.length;
+  document.getElementById('st-done').textContent    = allStories.filter(s => s.status==='Done').length;
+  document.getElementById('st-pending').textContent = allStories.filter(s => s.status==='Pending'||!s.status).length;
+  document.getElementById('st-error').textContent   = allStories.filter(s => s.status==='Error'||s.status==='No_Video').length;
+}
+
+// ── STATUS FILTERS ────────────────────────────────────────────────────────────
+function buildFilters() {
+  const statuses = ['All', ...new Set(allStories.map(s => s.status||'Pending').filter(Boolean))];
+  document.getElementById('status-filters').innerHTML = statuses.map(s =>
+    `<div class="filter-chip ${s===activeFilter?'active':''}" onclick="setFilter('${s}',this)">${s}</div>`
+  ).join('');
+}
+
+function setFilter(s, el) {
+  activeFilter = s;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  applyFilter();
+}
+
+// ── FILTER + RENDER ──────────────────────────────────────────────────────────
+function applyFilter() {
+  const q = document.getElementById('search').value.toLowerCase();
+  filtered = allStories.filter(s => {
+    const matchF = activeFilter === 'All' || (s.status||'Pending') === activeFilter;
+    const matchQ = !q || [s.gen_title,s.title,s.theme,s.notes].join(' ').toLowerCase().includes(q);
+    return matchF && matchQ;
+  });
+  renderGrid();
+}
+
+function statusPill(st) {
+  if(!st || st==='Pending') return '<span class="status-pill pill-pending">Pending</span>';
+  if(st==='Done')           return '<span class="status-pill pill-done">✓ Done</span>';
+  if(st==='Generated')      return '<span class="status-pill pill-generated">Generated</span>';
+  if(st==='Processing')     return '<span class="status-pill pill-processing">Processing</span>';
+  if(st==='Error'||st==='No_Video') return '<span class="status-pill pill-error">Error</span>';
+  return `<span class="status-pill pill-pending">${st}</span>`;
+}
+
+function renderGrid() {
+  const grid = document.getElementById('grid');
+  if(!filtered.length) {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><h3>No stories found</h3><p style="font-size:13px;margin-top:6px">Try changing the filter or refreshing the data.</p></div>`;
+    return;
+  }
+  grid.innerHTML = filtered.map((s, i) => {
+    const title = s.gen_title || s.title || 'Untitled';
+    const thumb = driveImageUrl(s.driveimg_link || s.drive_img_link || '');
+    const thumbHtml = thumb
+      ? `<img class="thumb-img" src="${thumb}" onerror="this.style.display='none';this.nextSibling.style.display='flex'" alt="">`
+      + `<div class="thumb-fallback" style="display:none">${(s.theme||'?')[0]||'?'}</div>`
+      : `<div class="thumb-fallback">${(s.theme||'?')[0]||'?'}</div>`;
+    const bestVideoUrl = s.process_d_link || s.drive_link || '';
+    const driveHtml = bestVideoUrl
+      ? `<a class="drive-link" href="${normalizeUrl(bestVideoUrl)}" target="_blank" onclick="event.stopPropagation()">▶ Open Video</a>`
+      : `<span style="font-size:11px;color:var(--muted)">No video yet</span>`;
+    return `<div class="card" onclick="openModal(${i})">
+      <div class="thumb-wrap">${thumbHtml}${statusPill(s.status)}</div>
+      <div class="card-body">
+        <div class="card-title">${title}</div>
+        <div class="card-meta">${s.theme||''} ${s.completed_time ? '· '+s.completed_time.substring(0,10) : ''}</div>
+        <div class="card-footer">${driveHtml}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── MODAL ─────────────────────────────────────────────────────────────────────
+function openModal(i) {
+  const s = filtered[i];
+  document.getElementById('modal-title').textContent = s.gen_title || s.title || 'Story Detail';
+  const thumb = driveImageUrl(s.driveimg_link || s.drive_img_link || '');
+  const thumbEl = thumb
+    ? `<img class="modal-thumb" src="${thumb}" onerror="this.src=''" alt="Thumbnail">`
+    : `<div class="modal-thumb-ph">${(s.theme||'?')[0]||'?'}</div>`;
+
+  const isDone = s.status === 'Done';
+  const autoNotice = isDone
+    ? `<div class="autopost-notice">✅ Auto-post triggered — processed video was uploaded and Drive_Link updated in sheet.</div>`
+    : '';
+  const videoUrl = s.drive_link || s.process_d_link || '';
+  const ytBtn = (isDone && videoUrl)
+    ? `<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+        <div style="font-size:13px;font-weight:700;margin-bottom:8px">📺 Post to YouTube</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+          <div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">Title</label>
+            <input id="yt-title" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:7px 10px;width:100%;border-radius:4px;font-size:12px" value="${(s.gen_title||s.title||'').replace(/'/g,'&#39;')}"></div>
+          <div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">Privacy</label>
+            <select id="yt-privacy" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:7px 10px;width:100%;border-radius:4px;font-size:12px">
+              <option value="public">🌐 Public</option>
+              <option value="unlisted">🔗 Unlisted</option>
+              <option value="private">🔒 Private</option>
+            </select></div>
+        </div>
+        <div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">Description</label>
+          <textarea id="yt-desc" rows="3" style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:7px 10px;width:100%;border-radius:4px;font-size:12px;resize:none">${(s.gen_summary||s.moral||'').replace(/'/g,'&#39;')}</textarea></div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn btn-success" onclick="postToYouTube('${videoUrl}', '${i}')" style="flex:1">▶ POST TO YOUTUBE NOW</button>
+          <a class="btn btn-ghost" href="https://studio.youtube.com" target="_blank">Open Studio ↗</a>
+        </div>
+        <div id="yt-status" style="font-size:12px;margin-top:8px;color:var(--muted)"></div>
+      </div>`
+    : '';
+
+  document.getElementById('modal-body').innerHTML = `
+    ${thumbEl}
+    ${row('Status', `<b style="color:${statusColor(s.status)}">${s.status||'Pending'}</b>`)}
+    ${row('Title', s.title||'—')}
+    ${row('Gen Title', s.gen_title||'—')}
+    ${row('Theme', s.theme||'—')}
+    ${row('Moral', s.moral||'—')}
+    ${row('Account', s.email_used||'—')}
+    ${row('Credits', s.credit_before ? s.credit_before+'→'+s.credit_after : '—')}
+    ${row('Created', s.created_time||'—')}
+    ${row('Completed', s.completed_time||'—')}
+    ${row('Raw Video', s.drive_link ? link(s.drive_link,'Open Drive') : '—')}
+    ${row('Proc. Video', (s.process_d_link||s.drive_link) ? link(s.process_d_link||s.drive_link,'Open Drive') : '—')}
+    ${row('Thumbnail', (s.driveimg_link||s.drive_img_link) ? link(s.driveimg_link||s.drive_img_link,'Open Drive') : '—')}
+    ${row('Project', s.project_url ? link(s.project_url,'Open MagicLight') : '—')}
+    ${s.notes ? row('Notes', s.notes) : ''}
+    ${autoNotice}
+    ${ytBtn}
+  `;
+  document.getElementById('overlay').classList.add('open');
+}
+
+function row(label, val) {
+  return `<div class="detail-row"><span class="detail-label">${label}</span><span class="detail-value">${val}</span></div>`;
+}
+function link(url, text) {
+  return `<a class="detail-link" href="${normalizeUrl(url)}" target="_blank">${text} ↗</a>`;
+}
+function statusColor(s) {
+  if(s==='Done')      return 'var(--accent2)';
+  if(s==='Generated') return 'var(--accent)';
+  if(s==='Error')     return 'var(--red)';
+  return 'var(--muted)';
+}
+
+function closeModal(e) {
+  if(e.target === document.getElementById('overlay'))
+    document.getElementById('overlay').classList.remove('open');
+}
+
+// ── YOUTUBE UPLOAD ───────────────────────────────────────────────────────────
+async function postToYouTube(driveUrl, storyIdx) {
+  const statusEl = document.getElementById('yt-status');
+  const title    = document.getElementById('yt-title')?.value || 'Story Video';
+  const desc     = document.getElementById('yt-desc')?.value  || '';
+  const privacy  = document.getElementById('yt-privacy')?.value || 'public';
+
+  if(!driveUrl){ statusEl.innerHTML='<span style="color:var(--red)">⚠ No video Drive link available</span>'; return; }
+  if(!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes('YOUR_')){ 
+    statusEl.innerHTML='<span style="color:var(--red)">⚠ Set APPS_SCRIPT_URL in config.js first</span>'; return; 
+  }
+
+  statusEl.innerHTML='<span style="color:var(--accent)">⏳ Sending to Apps Script…</span>';
+  try {
+    const payload = {
+      action:    'uploadToYouTube',
+      driveUrl:  driveUrl,
+      title:     title,
+      description: desc,
+      privacy:   privacy,
+      channelId: YT_CHANNEL_ID,
+      tags:      filtered[storyIdx]?.gen_tags || ''
+    };
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if(data.success) {
+      statusEl.innerHTML=`<span style="color:var(--accent2)">✅ Uploaded! <a style="color:var(--accent)" href="https://youtu.be/${data.videoId}" target="_blank">View on YouTube ↗</a></span>`;
+    } else {
+      statusEl.innerHTML=`<span style="color:var(--red)">❌ Error: ${data.error||'Unknown error'}</span>`;
+    }
+  } catch(e) {
+    statusEl.innerHTML=`<span style="color:var(--red)">❌ Request failed: ${e.message}</span>`;
+  }
+}
+
+// ── HELPERS ──────────────────────────────────────────────────────────────────
+function normalizeUrl(u) {
+  if(!u) return '';
+  return u.replace('view?usp=drivesdk','preview').replace('view?usp=sharing','preview');
+}
+
+function driveImageUrl(u) {
+  if(!u) return '';
+  const m1 = u.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  const m2 = u.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  const id = (m1 && m1[1]) || (m2 && m2[1]) || '';
+  if(id) return `https://drive.google.com/uc?export=view&id=${id}`;
+  return normalizeUrl(u);
+}
+
+// ── DEMO DATA ─────────────────────────────────────────────────────────────────
+const DEMO = [
+  {status:'Done',title:'Sample Story 1',gen_title:'The Glowing Lantern',theme:'Courage',moral:'Be brave',drive_link:'https://drive.google.com',driveimg_link:'',email_used:'demo@example.com',credit_before:'800',credit_after:'740',created_time:'2026-04-15 01:00',completed_time:'2026-04-15 02:30',notes:'Generated OK'},
+  {status:'Generated',title:'Sample Story 2',gen_title:'The Bouncing Cloud',theme:'Friendship',moral:'Share and care',drive_link:'',driveimg_link:'',email_used:'demo@example.com',credit_before:'740',credit_after:'680',created_time:'2026-04-15 03:00',completed_time:'',notes:''},
+  {status:'Pending',title:'Sample Story 3',gen_title:'',theme:'Teamwork',moral:'Work together',drive_link:'',driveimg_link:'',email_used:'',credit_before:'',credit_after:'',created_time:'',completed_time:'',notes:''},
+  {status:'Error',title:'Sample Story 4',gen_title:'',theme:'Kindness',moral:'Be kind',drive_link:'',driveimg_link:'',email_used:'demo@example.com',credit_before:'680',credit_after:'',created_time:'2026-04-15 04:00',completed_time:'',notes:'Render timeout'},
+];
+
+// ── BOOT ──────────────────────────────────────────────────────────────────────
+loadData();
+</script>
+</body>
+</html>

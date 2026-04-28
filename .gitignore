@@ -1,0 +1,92 @@
+# ── Python ──────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# ── Environment & Credentials ─── NEVER COMMIT THESE ───────────────────────────
+.env
+.env.local
+.env.production
+auth.json
+auth_*.json
+accounts.txt
+credentials.json
+credentials_*.json
+oauth_credentials.json
+token.json
+token_*.json
+service_account.json
+*.p12
+*.pem
+
+# ── State & Session Files ───────────────────────────────────────────────────────
+.menu_state.pkl
+.menu_state.json
+*.pkl
+*.state
+*.session
+*.cache
+
+# ── Test & Temporary Files ───────────────────────────────────────────────────────
+test_*.py
+temp_*
+*_test.*
+*.temp
+*.bak
+*.backup
+
+# ── Output / Downloads ───────────────────────────────────────────────────────────
+output/
+screenshots/
+downloads/
+temp/
+
+# ── CSV ──────────────────────────────────────────────────────────────────────────
+*.csv
+
+# ── Temp / Dev files ─────────────────────────────────────────────────────────────
+inspect_dom.py
+patch_modal.py
+test_*.py
+*.log
+*.tmp
+
+# ── OS ───────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── IDE / Editor ─────────────────────────────────────────────────────────────────
+.vscode/
+.windsurf/
+files/
+
+# ── Browser / Playwright ────────────────────────────────────────────────────────
+playwright-report/
+test-results/
+*.webm
+*.mp4
+*.avi
+*.mov
+
+# ── Security ───────────────────────────────────────────────────────────────────
+config.json
+secrets.json
+private_key.json
+client_secret_*.json
+api_keys.txt
+passwords.txt
+*.key
+*.crt
+
+# ── Local-only Scripts ─── do not commit ───────────────────────────────────────
+run_scheduled.bat
+setup_schedule.ps1
+sheet_columns_template.csv
+
+# ── Python venv ─────────────────────────────────────────────────────────────────
+venv/
+.venv/
+env/

@@ -1,0 +1,172 @@
+name: MagicLight Generation Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Run Mode'
+        required: true
+        default: 'combined'
+        type: choice
+        options:
+          - combined
+          - generate
+          - process
+      quantity:
+        description: 'Quantity Limit (0 = All Pending)'
+        required: true
+        default: '1'
+        type: string
+      upload_drive:
+        description: 'Upload matching videos to Google Drive?'
+        required: true
+        default: true
+        type: boolean
+      loop:
+        description: 'Run on continuous Loop Mode until manually cancelled?'
+        required: true
+        default: false
+        type: boolean
+  schedule:
+    - cron: "*/15 * * * *"
+
+concurrency:
+  group: magiclight-pipeline
+  cancel-in-progress: true
+
+jobs:
+  run-pipeline:
+    runs-on: windows-latest
+    timeout-minutes: 360
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: pip install -r requirements.txt
+        
+      - name: Install Playwright Browsers
+        run: playwright install chromium
+
+      - name: Set up FFmpeg
+        uses: FedericoCarboni/setup-ffmpeg@v3
+        with:
+          architecture: x64
+
+      - name: Decode API Credentials
+        env:
+          GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
+          ENV_FILE: ${{ secrets.ENV_FILE }}
+          ACCOUNTS_TXT: ${{ secrets.ACCOUNTS_TXT }}
+        run: |
+          if ($env:GCP_CREDENTIALS -ne $null -and $env:GCP_CREDENTIALS.Trim() -ne "") {
+              $env:GCP_CREDENTIALS | Out-File -FilePath credentials.json -Encoding utf8 -NoNewline
+          }
+          if ($env:ENV_FILE -ne $null -and $env:ENV_FILE.Trim() -ne "") {
+              $env:ENV_FILE | Out-File -FilePath .env -Encoding utf8 -NoNewline
+          }
+          if ($env:ACCOUNTS_TXT -ne $null -and $env:ACCOUNTS_TXT.Trim() -ne "") {
+              $env:ACCOUNTS_TXT | Out-File -FilePath accounts.txt -Encoding utf8 -NoNewline
+          }
+
+      - name: "Preflight: Ensure .env has SHEET_ID"
+        shell: pwsh
+        env:
+          SHEET_ID: ${{ vars.SHEET_ID }}
+          SHEET_NAME: ${{ vars.SHEET_NAME }}
+          DRIVE_FOLDER_ID: ${{ vars.DRIVE_FOLDER_ID }}
+          SHEET_ID_SECRET: ${{ secrets.SHEET_ID }}
+          SHEET_NAME_SECRET: ${{ secrets.SHEET_NAME }}
+          DRIVE_FOLDER_ID_SECRET: ${{ secrets.DRIVE_FOLDER_ID }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          function Append-Or-Replace-EnvLine([string]$path, [string]$key, [string]$value) {
+            if (-not $value) { return }
+            $escapedKey = [regex]::Escape($key)
+            $lines = @()
+            if (Test-Path $path) {
+              $lines = Get-Content -LiteralPath $path -ErrorAction SilentlyContinue
+            }
+            if ($lines -match "^$escapedKey=") {
+              $lines = $lines | ForEach-Object { if ($_ -match "^$escapedKey=") { "$key=$value" } else { $_ } }
+            } else {
+              $lines += "$key=$value"
+            }
+            Set-Content -LiteralPath $path -Value $lines -Encoding utf8
+          }
+
+          # Ensure the file exists (dotenv loader expects it next to main.py)
+          if (-not (Test-Path .env)) {
+            '' | Out-File -FilePath .env -Encoding utf8
+          }
+
+          # Prefer repo variables, but allow secrets fallback
+          $sheetId = if ($env:SHEET_ID) { $env:SHEET_ID } else { $env:SHEET_ID_SECRET }
+          $sheetName = if ($env:SHEET_NAME) { $env:SHEET_NAME } else { $env:SHEET_NAME_SECRET }
+          $driveFolderId = if ($env:DRIVE_FOLDER_ID) { $env:DRIVE_FOLDER_ID } else { $env:DRIVE_FOLDER_ID_SECRET }
+
+          Append-Or-Replace-EnvLine -path .env -key 'SHEET_ID' -value $sheetId
+          Append-Or-Replace-EnvLine -path .env -key 'SHEET_NAME' -value $sheetName
+          Append-Or-Replace-EnvLine -path .env -key 'DRIVE_FOLDER_ID' -value $driveFolderId
+
+          $envText = Get-Content -LiteralPath .env -Raw -ErrorAction SilentlyContinue
+          $hasSheetId = $false
+          if ($envText) {
+            $hasSheetId = [regex]::IsMatch($envText, '(?m)^\s*SHEET_ID\s*=\s*.+\s*$')
+          }
+
+          $envSize = (Get-Item .env).Length
+          Write-Host "[preflight] .env exists: $true"
+          Write-Host "[preflight] .env size: $envSize bytes"
+          Write-Host "[preflight] SHEET_ID present: $hasSheetId"
+
+          if (-not $hasSheetId) {
+            throw "SHEET_ID is missing. Set repo Variable SHEET_ID (recommended) or Secrets ENV_FILE / SHEET_ID to include it."
+          }
+
+      - name: Run MagicLight Pipeline
+        shell: pwsh
+        env:
+          GITHUB_ACTIONS: "true"
+        run: |
+          $mode = "${{ github.event.inputs.mode }}"
+          if (-not $mode) { $mode = "combined" }
+
+          $qty = "${{ github.event.inputs.quantity }}"
+          if (-not $qty) { $qty = "1" }
+
+          $uploadDrive = "${{ github.event.inputs.upload_drive }}"
+          if (-not $uploadDrive) { $uploadDrive = "true" }
+
+          $loop = "${{ github.event.inputs.loop }}"
+          if (-not $loop) { $loop = "false" }
+
+          $argsStr = "--mode $mode --max $qty --headless"
+          if ($uploadDrive -eq "true") {
+              $argsStr += " --upload-drive"
+          }
+          if ($loop -eq "true") {
+              $argsStr += " --loop"
+          }
+
+          # Always produce a log artifact, and preserve the python exit code
+          "[run] python main.py $argsStr" | Out-File -FilePath pipeline.log -Encoding utf8
+          & python main.py $argsStr 2>&1 | Tee-Object -FilePath pipeline.log -Append
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload Pipeline Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: magiclight-output
+          path: |
+            output/**
+            *.log

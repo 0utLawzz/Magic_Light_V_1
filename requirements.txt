@@ -1,0 +1,16 @@
+﻿# Video Generation Dependencies
+gdown==5.2.0
+google-api-python-client==2.164.0
+google-auth==2.38.0
+google-auth-httplib2==0.3.0
+google-auth-oauthlib==1.2.1
+gspread==6.1.4
+playwright==1.58.0
+python-dotenv==1.1.0
+requests==2.32.3
+requests-oauthlib==2.0.0
+rich==13.9.4
+
+# Video Processing Dependencies
+# Note: FFmpeg must be installed separately on your system
+# Download from: https://ffmpeg.org/download.html
