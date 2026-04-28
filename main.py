@@ -1075,7 +1075,7 @@ def step1(page, story_text):
     _ok("Story text filled")
     sleep_log(1)
     try:
-        page.locator("div").filter(has_text=re.compile(r"^Pixar$")).first.click()
+        page.locator("div").filter(has_text=re.compile(r"^Pixar\s*$")).first.click()
         _ok("Style: Pixar")
     except: _warn("Pixar not found — default")
     try:
