@@ -336,6 +336,95 @@ def _update_credits_completion(email, total, used, row_num, action, status):
     except Exception as e:
         _warn(f"[credits] Completion update error: {e}")
 
+def check_all_accounts_credits(headless=False):
+    """
+    Check all accounts from accounts.txt and log their credit data to the Credits sheet.
+    This function iterates through all accounts, logs in to each, reads the credit balance,
+    and logs the data to the 'Credits' tab in the Google Sheet.
+    
+    Args:
+        headless: If True, run browser in headless mode (no UI)
+    """
+    global _browser
+    
+    _step("[Credits Check] Starting account credit check...")
+    
+    # Load accounts from accounts.txt
+    accounts = []
+    if os.path.exists("accounts.txt"):
+        with open("accounts.txt", "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and ":" in line:
+                    u, p = line.split(":", 1)
+                    accounts.append((u.strip(), p.strip()))
+    
+    if not accounts:
+        if EMAIL and PASSWORD:
+            accounts = [(EMAIL, PASSWORD)]
+            _info("[Credits Check] Using single account from .env")
+        else:
+            _err("[Credits Check] No credentials in accounts.txt or .env")
+            return
+    
+    _ok(f"[Credits Check] Loaded {len(accounts)} account(s)")
+    
+    # Initialize browser if not already running
+    if _browser is None:
+        _info(f"[Credits Check] Starting browser (headless={headless})...")
+        playwright = sync_playwright().start()
+        _browser = playwright.chromium.launch(headless=headless)
+    
+    checked_count = 0
+    failed_count = 0
+    
+    for idx, (email, password) in enumerate(accounts, 1):
+        _info(f"[Credits Check] Checking account {idx}/{len(accounts)}: {email}")
+        
+        try:
+            # Create new context and page for this account
+            context = _browser.new_context(accept_downloads=True, no_viewport=True)
+            page = context.new_page()
+            
+            # Login using existing login function
+            login(page, custom_email=email, custom_pw=password)
+            
+            # Navigate to user-center to read credits
+            _info("[Credits Check] Navigating to user-center...")
+            try:
+                page.goto("https://magiclight.ai/user-center", timeout=45000)
+                wait_site_loaded(page, None, timeout=30)
+                sleep_log(2, "user center settle")
+            except Exception as e:
+                _warn(f"[Credits Check] Could not load user center: {e}")
+            
+            # Read credits using existing function
+            total_credits, used_credits = _read_credits_from_page(page)
+            
+            _ok(f"[Credits Check] {email}: Total={total_credits}, Used={used_credits}")
+            
+            # Log to Credits sheet using existing function
+            _update_credits_login(email, total_credits)
+            
+            # Logout and cleanup
+            try:
+                _logout(page)
+            except:
+                pass
+            
+            context.close()
+            checked_count += 1
+            
+        except Exception as e:
+            _err(f"[Credits Check] Failed for {email}: {e}")
+            failed_count += 1
+            try:
+                context.close()
+            except:
+                pass
+    
+    _ok(f"[Credits Check] Complete: {checked_count} checked, {failed_count} failed")
+
 def _col(name: str) -> int | None:
     return SHEET_SCHEMA.get(name)
 
@@ -422,6 +511,10 @@ def upload_to_drive(file_path, folder_name=None):
 def upload_story_to_drive(story_folder, safe_name, video_path, thumb_path,
                            sheet_row_num=None):
     result = {"folder_link": "", "video_link": "", "thumb_link": ""}
+
+    if not UPLOAD_TO_DRIVE:
+        _info("[drive] UPLOAD_TO_DRIVE is disabled — using local only")
+        return result
 
     if not DRIVE_FOLDER_ID:
         _warn("[drive] DRIVE_FOLDER_ID not set — skipping Drive upload")
@@ -982,9 +1075,9 @@ def step1(page, story_text):
     _ok("Story text filled")
     sleep_log(1)
     try:
-        page.locator("div").filter(has_text=re.compile(r"^Pixar 2\.0$")).first.click()
-        _ok("Style: Pixar 2.0")
-    except: _warn("Pixar 2.0 not found — default")
+        page.locator("div").filter(has_text=re.compile(r"^Pixar$")).first.click()
+        _ok("Style: Pixar")
+    except: _warn("Pixar not found — default")
     try:
         page.locator("div").filter(has_text=re.compile(r"^16:9$")).first.click()
         _ok("Aspect: 16:9")
@@ -2356,25 +2449,21 @@ def menu():
     mt = Table(show_header=False, box=None, padding=(0, 2))
     mt.add_column("num",  style="bold cyan", width=4)
     mt.add_column("name", style="bold white", width=25)
-    mt.add_row("1", "Full Pipeline")
-    mt.add_row("2", "Just Video Story Making")
-    mt.add_row("3", "Video Encoding Process")
-    mt.add_row("4", "Exit")
+    mt.add_row("1", "Generate")
+    mt.add_row("2", "Check Credit")
     console.print(mt)
     console.print()
 
-    choice = console.input("  [bold cyan]Select Mode [1-4]: [/bold cyan]").strip()
-    if choice not in ["1", "2", "3"]: return
+    choice = console.input("  [bold cyan]Select Mode [1-2]: [/bold cyan]").strip()
+    if choice not in ["1", "2"]: return
 
-    mode_map = {"1": "combined", "2": "generate", "3": "process"}
-    mode = mode_map[choice]
-
-    amount = ask_amount("Stories")
-    upload_drive = ask_drive()
-    args.upload_drive = upload_drive
-    
-    loop_mode = False
-    if mode in ["combined", "generate"]:
+    if choice == "1":
+        mode = "combined"
+        amount = ask_amount("Stories")
+        upload_drive = ask_drive()
+        args.upload_drive = upload_drive
+        
+        loop_mode = False
         loop_choice = console.input(f"  [bold cyan]🔄 Run on loop (Y/N)? [/bold cyan]").strip().upper()
         loop_mode = (loop_choice == "Y")
         if loop_mode:
@@ -2382,10 +2471,9 @@ def menu():
             if not DRIVE_FOLDER_ID:
                 _err("DRIVE_FOLDER_ID required for Loop mode!"); return
 
-    console.print()
-    cfg = load_process_cfg()
+        console.print()
+        cfg = load_process_cfg()
 
-    if mode in ["combined", "generate"]:
         pw_manager = sync_playwright().start()
         global _browser
         _browser = pw_manager.chromium.launch(
@@ -2409,10 +2497,10 @@ def menu():
             except: pass
             try: pw_manager.stop()
             except: pass
-    elif mode == "process":
-        vids = scan_videos(Path(OUT_BASE))
-        vids = vids[:amount] if amount > 0 else vids
-        process_all(cfg, videos=vids, upload=args.upload_drive)
+    elif choice == "2":
+        headless_choice = console.input(f"  [bold cyan]Run headless (Y/N)? [/bold cyan]").strip().upper()
+        headless = (headless_choice == "Y")
+        check_all_accounts_credits(headless=headless)
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
 def parse_args():
@@ -2535,6 +2623,9 @@ if __name__ == "__main__":
                 _browser.close()
             except: pass
         import os as _os
+        _os._exit(0)
+    except Exception as e:
+        console.print(f"\n[bold red][FATAL] {e}[/bold red]")
         _os._exit(0)
     except Exception as e:
         console.print(f"\n[bold red][FATAL] {e}[/bold red]")
