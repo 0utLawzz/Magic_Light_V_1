@@ -2513,6 +2513,7 @@ def parse_args():
     parser.add_argument("--loop", action="store_true")
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--migrate-schema", action="store_true")
+    parser.add_argument("--check-credit", action="store_true", help="Check all accounts credit balances")
     return parser.parse_args()
 
 def run_cli_mode(args):
@@ -2604,6 +2605,10 @@ if __name__ == "__main__":
             console.print(Panel.fit("[bold cyan]Schema Migration[/bold cyan]", border_style="cyan"))
             ensure_sheet_schema()
             _ok("Done.")
+            raise SystemExit(0)
+        if getattr(args, 'check_credit', False):
+            console.print(Panel.fit("[bold cyan]Credit Check[/bold cyan]", border_style="cyan"))
+            check_all_accounts_credits(headless=getattr(args, 'headless', False))
             raise SystemExit(0)
         if not run_cli_mode(args):
             class Args: pass
