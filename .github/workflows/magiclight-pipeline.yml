@@ -28,7 +28,7 @@ on:
         default: false
         type: boolean
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "*/20 * * * *"
 
 concurrency:
   group: magiclight-pipeline
@@ -63,17 +63,41 @@ jobs:
       - name: Decode API Credentials
         env:
           GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
+          GCP_CREDENTIALS_B64: ${{ secrets.GCP_CREDENTIALS_B64 }}
           ENV_FILE: ${{ secrets.ENV_FILE }}
+          ENV_FILE_B64: ${{ secrets.ENV_FILE_B64 }}
           ACCOUNTS_TXT: ${{ secrets.ACCOUNTS_TXT }}
+          ACCOUNTS_TXT_B64: ${{ secrets.ACCOUNTS_TXT_B64 }}
         run: |
-          if ($env:GCP_CREDENTIALS -ne $null -and $env:GCP_CREDENTIALS.Trim() -ne "") {
-              $env:GCP_CREDENTIALS | Out-File -FilePath credentials.json -Encoding utf8 -NoNewline
+          function Write-TextFile([string]$path, [string]$content) {
+            if ($null -eq $content) { return }
+            if ($content.Trim() -eq "") { return }
+            $content | Out-File -FilePath $path -Encoding utf8 -NoNewline
           }
-          if ($env:ENV_FILE -ne $null -and $env:ENV_FILE.Trim() -ne "") {
-              $env:ENV_FILE | Out-File -FilePath .env -Encoding utf8 -NoNewline
+
+          function Write-B64File([string]$path, [string]$b64) {
+            if ($null -eq $b64) { return }
+            if ($b64.Trim() -eq "") { return }
+            $bytes = [Convert]::FromBase64String($b64)
+            [System.IO.File]::WriteAllBytes($path, $bytes)
           }
-          if ($env:ACCOUNTS_TXT -ne $null -and $env:ACCOUNTS_TXT.Trim() -ne "") {
-              $env:ACCOUNTS_TXT | Out-File -FilePath accounts.txt -Encoding utf8 -NoNewline
+
+          if ($env:GCP_CREDENTIALS_B64 -ne $null -and $env:GCP_CREDENTIALS_B64.Trim() -ne "") {
+            Write-B64File -path "credentials.json" -b64 $env:GCP_CREDENTIALS_B64
+          } else {
+            Write-TextFile -path "credentials.json" -content $env:GCP_CREDENTIALS
+          }
+
+          if ($env:ENV_FILE_B64 -ne $null -and $env:ENV_FILE_B64.Trim() -ne "") {
+            Write-B64File -path ".env" -b64 $env:ENV_FILE_B64
+          } else {
+            Write-TextFile -path ".env" -content $env:ENV_FILE
+          }
+
+          if ($env:ACCOUNTS_TXT_B64 -ne $null -and $env:ACCOUNTS_TXT_B64.Trim() -ne "") {
+            Write-B64File -path "accounts.txt" -b64 $env:ACCOUNTS_TXT_B64
+          } else {
+            Write-TextFile -path "accounts.txt" -content $env:ACCOUNTS_TXT
           }
 
       - name: "Preflight: Ensure .env has SHEET_ID"
