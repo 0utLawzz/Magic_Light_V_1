@@ -53,7 +53,7 @@ jobs:
         run: pip install -r requirements.txt
         
       - name: Install Playwright Browsers
-        run: playwright install chromium
+        run: playwright install --with-deps chromium
 
       - name: Set up FFmpeg
         uses: FedericoCarboni/setup-ffmpeg@v3
